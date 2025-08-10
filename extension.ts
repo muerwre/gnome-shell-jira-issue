@@ -28,7 +28,7 @@ export default class JiraIssueExtension extends Extension {
 
         // Connect to refresh requests from indicator
         this.indicator.connect('refresh-requested', () => {
-            this._refreshIssues();
+            this._refreshIssues(true); // Show loading for manual refresh
         });
 
         // Watch for settings changes
@@ -43,7 +43,7 @@ export default class JiraIssueExtension extends Extension {
             
             // Do initial refresh
             GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 1, () => {
-                this._refreshIssues();
+                this._refreshIssues(true); // Show loading for initial refresh
                 return GLib.SOURCE_REMOVE;
             });
             
@@ -103,7 +103,7 @@ export default class JiraIssueExtension extends Extension {
             const id = this.settings!.connect(`changed::${key}`, () => {
                 if (this.jiraService) {
                     this.jiraService.updateSettings(this._getSettingsObject());
-                    this._refreshIssues();
+                    this._refreshIssues(true); // Show loading for settings changes
                 }
             });
             this.settingsChangedIds.push(id);
@@ -130,7 +130,7 @@ export default class JiraIssueExtension extends Extension {
         const displaySettings = ['no-issues-text', 'issue-format'];
         displaySettings.forEach(key => {
             const id = this.settings!.connect(`changed::${key}`, () => {
-                this._refreshIssues();
+                this._refreshIssues(true); // Show loading for display settings changes
             });
             this.settingsChangedIds.push(id);
         });
@@ -192,12 +192,15 @@ export default class JiraIssueExtension extends Extension {
 
         if (!this.settings) return;
 
-        const interval = this.settings.get_int('poll-interval');
+        // Ensure minimum interval of 60 seconds
+        const configuredInterval = this.settings.get_int('poll-interval');
+        const interval = Math.max(60, configuredInterval);
+        
         this.pollSourceId = GLib.timeout_add_seconds(
             GLib.PRIORITY_DEFAULT,
             interval,
             () => {
-                this._refreshIssues();
+                this._refreshIssues(false); // Don't show loading for polling
                 return GLib.SOURCE_CONTINUE;
             }
         );
@@ -215,7 +218,7 @@ export default class JiraIssueExtension extends Extension {
         this._startPolling();
     }
 
-    private async _refreshIssues() {
+    private async _refreshIssues(showLoading = true) {
         if (!this.indicator || !this.jiraService) {
             return;
         }
@@ -228,7 +231,9 @@ export default class JiraIssueExtension extends Extension {
             return;
         }
 
-        this.indicator.showLoading();
+        if (showLoading) {
+            this.indicator.showLoading();
+        }
 
         try {
             const issues = await this.jiraService.searchIssues();

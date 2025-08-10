@@ -97,12 +97,12 @@ export default class JiraIssuePreferences extends ExtensionPreferences {
         // Poll interval
         const pollIntervalRow = new Adw.SpinRow({
             title: _('Poll Interval'),
-            subtitle: _('How often to check for updates (seconds)'),
+            subtitle: _('How often to check for updates (minimum 60 seconds)'),
             adjustment: new Gtk.Adjustment({
-                lower: 30,
+                lower: 60,
                 upper: 3600,
                 stepIncrement: 30,
-                value: this.settings!.get_int('poll-interval'),
+                value: Math.max(60, this.settings!.get_int('poll-interval')),
             }),
         });
         this.settings!.bind(
