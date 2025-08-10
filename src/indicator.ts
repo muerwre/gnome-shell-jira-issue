@@ -52,6 +52,16 @@ class JiraIndicatorClass extends PanelMenu.Button {
     }
 
     private _buildMenu() {
+        // Show All Issues menu item
+        const showAllIssuesItem = new PopupMenu.PopupMenuItem(_('Show All Issues'));
+        showAllIssuesItem.connect('activate', () => {
+            this._openHomepageInBrowser();
+        });
+        (this.menu as any).addMenuItem(showAllIssuesItem);
+
+        // Separator
+        (this.menu as any).addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
         // Refresh menu item
         const refreshItem = new PopupMenu.PopupMenuItem(_('Refresh'));
         refreshItem.connect('activate', () => {
@@ -124,13 +134,35 @@ class JiraIndicatorClass extends PanelMenu.Button {
         this._openUrl(issueUrl);
     }
 
-    private _openJiraInBrowser() {
+    private _resolveHomepageUrl(): string {
+        const homepageUrl = this.settings.get_string('homepage-url').trim();
         const jiraUrl = this.settings.get_string('jira-url');
-        if (!jiraUrl) return;
+        
+        if (!homepageUrl) {
+            // Use main Jira URL if homepage is empty
+            return this._normalizeUrl(jiraUrl);
+        }
+        
+        if (homepageUrl.startsWith('http://') || homepageUrl.startsWith('https://')) {
+            // Full URL provided
+            return homepageUrl;
+        }
+        
+        // Relative path - combine with Jira base URL
+        const baseUrl = this._normalizeUrl(jiraUrl);
+        const relativePath = homepageUrl.startsWith('/') ? homepageUrl : `/${homepageUrl}`;
+        return `${baseUrl}${relativePath}`;
+    }
 
-        const normalizedUrl = this._normalizeUrl(jiraUrl);
-        console.log('Opening Jira URL:', normalizedUrl);
-        this._openUrl(normalizedUrl);
+    private _openHomepageInBrowser() {
+        const homepageUrl = this._resolveHomepageUrl();
+        console.log('Opening homepage URL:', homepageUrl);
+        this._openUrl(homepageUrl);
+    }
+
+    private _openJiraInBrowser() {
+        // Use homepage URL for no-issues state
+        this._openHomepageInBrowser();
     }
 
     private _showErrorDialog() {

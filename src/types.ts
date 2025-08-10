@@ -47,4 +47,5 @@ export interface ExtensionSettings {
   issueFormat: string;
   noIssuesText: string;
   panelPosition: number;
+  homepageUrl: string;
 }

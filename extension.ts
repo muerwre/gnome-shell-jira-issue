@@ -99,6 +99,7 @@ export default class JiraIssueExtension extends Extension {
             issueFormat: this.settings.get_string('issue-format'),
             noIssuesText: this.settings.get_string('no-issues-text'),
             panelPosition: this.settings.get_int('panel-position'),
+            homepageUrl: this.settings.get_string('homepage-url'),
         };
     }
 
@@ -106,7 +107,7 @@ export default class JiraIssueExtension extends Extension {
         if (!this.settings) return;
 
         // Watch for settings changes that require service update
-        const serviceSettings = ['jira-url', 'jira-email', 'jira-token', 'jql-query', 'issue-format'];
+        const serviceSettings = ['jira-url', 'jira-email', 'jira-token', 'jql-query', 'issue-format', 'homepage-url'];
         serviceSettings.forEach(key => {
             const id = this.settings!.connect(`changed::${key}`, () => {
                 if (this.jiraService) {

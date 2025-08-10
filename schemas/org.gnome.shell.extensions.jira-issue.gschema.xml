@@ -41,5 +41,10 @@
       <summary>Panel Position</summary>
       <description>Position in panel: 0=left, 1=center, 2=right</description>
     </key>
+    <key name="homepage-url" type="s">
+      <default>""</default>
+      <summary>Homepage URL</summary>
+      <description>URL to open when no issues are found or for "Show All Issues". Can be full URL (https://...) or relative path (/jira/your-work). Leave empty to use main Jira URL.</description>
+    </key>
   </schema>
 </schemalist>

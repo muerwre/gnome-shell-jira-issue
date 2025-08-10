@@ -113,6 +113,37 @@ export default class JiraIssuePreferences extends ExtensionPreferences {
         );
         queryGroup.add(pollIntervalRow);
 
+        // Navigation settings group
+        const navGroup = new Adw.PreferencesGroup({
+            title: _('Navigation'),
+            description: _('Configure navigation URLs'),
+        });
+        page.add(navGroup);
+
+        // Homepage URL
+        const homepageUrlRow = new Adw.EntryRow({
+            title: _('Homepage URL'),
+            text: this.settings!.get_string('homepage-url'),
+        });
+        homepageUrlRow.connect('changed', () => {
+            this.settings!.set_string('homepage-url', homepageUrlRow.get_text());
+        });
+        navGroup.add(homepageUrlRow);
+
+        // Add helpful text for homepage URL
+        const homepageHelpLabel = new Gtk.Label({
+            label: _('URL to open when no issues are found or for "Show All Issues".\nCan be full URL (https://...) or relative path (/jira/your-work).\nLeave empty to use main Jira URL.\n\nExamples:\n• https://company.atlassian.net/jira/your-work\n• /secure/RapidBoard.jspa\n• /jira/dashboards'),
+            wrap: true,
+            xalign: 0,
+            margin_start: 12,
+            margin_end: 12,
+            margin_top: 6,
+            margin_bottom: 12,
+        });
+        homepageHelpLabel.add_css_class('dim-label');
+        homepageHelpLabel.add_css_class('caption');
+        navGroup.add(homepageHelpLabel);
+
         return page;
     }
 
