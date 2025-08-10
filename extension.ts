@@ -13,6 +13,7 @@ export default class JiraIssueExtension extends Extension {
     private settings?: Gio.Settings;
     private pollSourceId?: number;
     private settingsChangedIds: number[] = [];
+    private settingsDebounceTimer?: number;
 
     enable() {
         this.settings = this.getSettings();
@@ -97,25 +98,27 @@ export default class JiraIssueExtension extends Extension {
     private _connectSettings() {
         if (!this.settings) return;
 
-        // Watch for settings changes that require service update
+        // Watch for settings changes that require service update (with debouncing)
         const serviceSettings = ['jira-url', 'jira-email', 'jira-token', 'jql-query', 'issue-format', 'homepage-url'];
         serviceSettings.forEach(key => {
             const id = this.settings!.connect(`changed::${key}`, () => {
-                if (this.jiraService) {
-                    this.jiraService.updateSettings(this._getSettingsObject());
-                    this._refreshIssues(true); // Show loading for settings changes
-                }
+                this._debouncedSettingsChange(() => {
+                    if (this.jiraService) {
+                        this.jiraService.updateSettings(this._getSettingsObject());
+                        this._refreshIssues(true); // Show loading for settings changes
+                    }
+                });
             });
             this.settingsChangedIds.push(id);
         });
 
-        // Watch for poll interval changes
+        // Watch for poll interval changes (immediate, no debounce needed)
         const pollId = this.settings.connect('changed::poll-interval', () => {
             this._restartPolling();
         });
         this.settingsChangedIds.push(pollId);
 
-        // Watch for panel position changes
+        // Watch for panel position changes (immediate, no debounce needed)
         const panelId = this.settings.connect('changed::panel-position', () => {
             this._unloadIndicator();
             // Small delay to ensure clean removal before re-adding
@@ -126,11 +129,13 @@ export default class JiraIssueExtension extends Extension {
         });
         this.settingsChangedIds.push(panelId);
 
-        // Watch for display text changes
-        const displaySettings = ['no-issues-text', 'issue-format'];
+        // Watch for display text changes (with debouncing)
+        const displaySettings = ['no-issues-text'];
         displaySettings.forEach(key => {
             const id = this.settings!.connect(`changed::${key}`, () => {
-                this._refreshIssues(true); // Show loading for display settings changes
+                this._debouncedSettingsChange(() => {
+                    this._refreshIssues(true); // Show loading for display settings changes
+                });
             });
             this.settingsChangedIds.push(id);
         });
@@ -143,6 +148,26 @@ export default class JiraIssueExtension extends Extension {
             this.settings!.disconnect(id);
         });
         this.settingsChangedIds = [];
+        
+        // Clear any pending debounce timer
+        if (this.settingsDebounceTimer) {
+            GLib.Source.remove(this.settingsDebounceTimer);
+            this.settingsDebounceTimer = undefined;
+        }
+    }
+
+    private _debouncedSettingsChange(callback: () => void, delay = 800) {
+        // Clear existing timer
+        if (this.settingsDebounceTimer) {
+            GLib.Source.remove(this.settingsDebounceTimer);
+        }
+
+        // Set new timer
+        this.settingsDebounceTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
+            this.settingsDebounceTimer = undefined;
+            callback();
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     private _loadIndicator() {
