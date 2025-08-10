@@ -16,23 +16,9 @@ export class JiraService {
     }
 
     async searchIssues(): Promise<JiraIssue[]> {
-        console.log('JiraService: Starting searchIssues()');
-        
         if (!this.settings.jiraUrl || !this.settings.jiraEmail || !this.settings.jiraToken) {
-            console.log('JiraService: Missing configuration', {
-                hasUrl: !!this.settings.jiraUrl,
-                hasEmail: !!this.settings.jiraEmail,
-                hasToken: !!this.settings.jiraToken
-            });
             throw new Error('Jira URL, email, and token must be configured');
         }
-
-        console.log('JiraService: Settings', {
-            jiraUrl: this.settings.jiraUrl,
-            jiraEmail: this.settings.jiraEmail,
-            jqlQuery: this.settings.jqlQuery,
-            tokenLength: this.settings.jiraToken.length
-        });
 
         const queryParts = [
             `jql=${encodeURIComponent(this.settings.jqlQuery)}`,
@@ -50,7 +36,6 @@ export class JiraService {
         }
         
         const url = `${baseUrl}/rest/api/2/search?${queryParts.join('&')}`;
-        console.log('JiraService: Constructed URL:', url);
         
         // Basic URL format validation
         if (!url.startsWith('http://') && !url.startsWith('https://')) {
@@ -79,11 +64,8 @@ export class JiraService {
             throw new Error('Failed to create HTTP message - Soup.Message.new returned null');
         }
 
-        console.log('JiraService: Message created successfully');
-
         // Set headers
         const requestHeaders = message.get_request_headers();
-        console.log('JiraService: Setting headers');
         
         // Use Basic Authentication like the working curl script
         const authString = `${this.settings.jiraEmail}:${this.settings.jiraToken}`;
@@ -91,17 +73,12 @@ export class JiraService {
         requestHeaders.append('Authorization', `Basic ${authBase64}`);
         requestHeaders.append('Accept', 'application/json');
         requestHeaders.append('User-Agent', 'GNOME-Jira-Extension/1.0');
-        
-        console.log('JiraService: Using Basic Auth with email:', this.settings.jiraEmail);
-
-        console.log('JiraService: Sending HTTP request');
         return new Promise((resolve, reject) => {
             this.session.send_and_read_async(
                 message,
                 GLib.PRIORITY_DEFAULT,
                 null,
                 (source: any, result: any) => {
-                    console.log('JiraService: HTTP response received');
                     try {
                         const inputStream = this.session.send_and_read_finish(result);
                         const bytes = inputStream.get_data();
@@ -114,9 +91,6 @@ export class JiraService {
 
                         const text = new TextDecoder().decode(bytes);
                         const status = message.get_status();
-                        
-                        console.log('JiraService: Response status:', status);
-                        console.log('JiraService: Response text (first 200 chars):', text.substring(0, 200));
 
                         if (status !== Soup.Status.OK) {
                             console.error('JiraService: HTTP error status:', status);
@@ -125,10 +99,6 @@ export class JiraService {
                         }
 
                         const response: JiraSearchResponse = JSON.parse(text);
-                        console.log('JiraService: Parsed response:', {
-                            totalIssues: response.total,
-                            returnedIssues: response.issues?.length || 0
-                        });
                         resolve(response.issues || []);
                     } catch (error) {
                         console.error('JiraService: Error processing response:', error);
@@ -140,14 +110,12 @@ export class JiraService {
     }
 
     private handleHttpError(status: number, responseText: string, reject: (error: Error) => void) {
-        console.log('JiraService: Handling HTTP error:', status);
-        console.log('JiraService: Error response text:', responseText);
+        console.error('JiraService: HTTP error:', status, responseText);
         
         let errorMessage = `HTTP ${status}`;
 
         try {
             const errorResponse: JiraErrorResponse = JSON.parse(responseText);
-            console.log('JiraService: Parsed error response:', errorResponse);
             
             if (errorResponse.errorMessages && errorResponse.errorMessages.length > 0) {
                 errorMessage = errorResponse.errorMessages[0];
@@ -158,7 +126,7 @@ export class JiraService {
                 }
             }
         } catch (parseError) {
-            console.log('JiraService: Failed to parse error response:', parseError);
+            console.error('JiraService: Failed to parse error response:', parseError);
             // If parsing fails, use the default error message
         }
 

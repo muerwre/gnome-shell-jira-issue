@@ -83,7 +83,6 @@ class JiraIndicatorClass extends PanelMenu.Button {
 
     private _openUrl(url: string) {
         try {
-            console.log('Opening URL:', url);
             // Try different methods to open URL
             const success = GLib.spawn_command_line_async(`xdg-open "${url}"`);
             if (!success) {
@@ -156,7 +155,6 @@ class JiraIndicatorClass extends PanelMenu.Button {
 
     private _openHomepageInBrowser() {
         const homepageUrl = this._resolveHomepageUrl();
-        console.log('Opening homepage URL:', homepageUrl);
         this._openUrl(homepageUrl);
     }
 
