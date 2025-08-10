@@ -1,6 +1,7 @@
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
@@ -11,6 +12,7 @@ class JiraIndicatorClass extends PanelMenu.Button {
     private label!: St.Label;
     private settings!: Gio.Settings;
     private currentIssue: JiraIssue | null = null;
+    private currentState: IndicatorState | null = null;
     private openPrefsCallback!: () => void;
 
     constructor(props: {settings: Gio.Settings, openPrefsCallback: () => void}) {
@@ -50,15 +52,6 @@ class JiraIndicatorClass extends PanelMenu.Button {
     }
 
     private _buildMenu() {
-        // Open Issue menu item
-        const openIssueItem = new PopupMenu.PopupMenuItem(_('Open Issue'));
-        openIssueItem.connect('activate', () => {
-            if (this.currentIssue) {
-                this._openIssueInBrowser();
-            }
-        });
-        (this.menu as any).addMenuItem(openIssueItem);
-
         // Refresh menu item
         const refreshItem = new PopupMenu.PopupMenuItem(_('Refresh'));
         refreshItem.connect('activate', () => {
@@ -66,26 +59,57 @@ class JiraIndicatorClass extends PanelMenu.Button {
         });
         (this.menu as any).addMenuItem(refreshItem);
 
-        // Separator
-        (this.menu as any).addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-
         // Settings menu item
         const settingsItem = new PopupMenu.PopupMenuItem(_('Settings'));
         settingsItem.connect('activate', () => {
             this.openPrefsCallback();
         });
         (this.menu as any).addMenuItem(settingsItem);
-
-        // Update menu visibility based on current state
-        this._updateMenuItems();
     }
 
     private _updateMenuItems() {
-        const items = (this.menu as any)._getMenuItems();
-        const openIssueItem = items[0] as PopupMenu.PopupMenuItem;
+        // Menu items are always available - no need to update them
+    }
+
+    private _openUrl(url: string) {
+        try {
+            console.log('Opening URL:', url);
+            // Try different methods to open URL
+            const success = GLib.spawn_command_line_async(`xdg-open "${url}"`);
+            if (!success) {
+                console.error('Failed to spawn xdg-open');
+                // Fallback to other browsers
+                try {
+                    GLib.spawn_command_line_async(`firefox "${url}"`);
+                } catch (firefoxError) {
+                    try {
+                        GLib.spawn_command_line_async(`google-chrome "${url}"`);
+                    } catch (chromeError) {
+                        try {
+                            GLib.spawn_command_line_async(`chromium "${url}"`);
+                        } catch (chromiumError) {
+                            console.error('No browser found to open URL');
+                        }
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Failed to open URL:', error);
+        }
+    }
+
+    private _normalizeUrl(url: string): string {
+        let normalizedUrl = url.trim();
         
-        // Enable/disable "Open Issue" based on whether we have a current issue
-        openIssueItem.setSensitive(this.currentIssue !== null);
+        // Add https:// if no protocol is specified
+        if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+            normalizedUrl = `https://${normalizedUrl}`;
+        }
+        
+        // Remove trailing slash
+        normalizedUrl = normalizedUrl.replace(/\/$/, '');
+        
+        return normalizedUrl;
     }
 
     private _openIssueInBrowser() {
@@ -94,16 +118,85 @@ class JiraIndicatorClass extends PanelMenu.Button {
         const jiraUrl = this.settings.get_string('jira-url');
         if (!jiraUrl) return;
 
-        const issueUrl = `${jiraUrl.replace(/\/$/, '')}/browse/${this.currentIssue.key}`;
-        
-        try {
-            Gio.AppInfo.launch_default_for_uri(issueUrl, null);
-        } catch (error) {
-            console.error('Failed to open issue URL:', error);
-        }
+        const normalizedUrl = this._normalizeUrl(jiraUrl);
+        const issueUrl = `${normalizedUrl}/browse/${this.currentIssue.key}`;
+        console.log('Opening issue URL:', issueUrl);
+        this._openUrl(issueUrl);
+    }
+
+    private _openJiraInBrowser() {
+        const jiraUrl = this.settings.get_string('jira-url');
+        if (!jiraUrl) return;
+
+        const normalizedUrl = this._normalizeUrl(jiraUrl);
+        console.log('Opening Jira URL:', normalizedUrl);
+        this._openUrl(normalizedUrl);
+    }
+
+    private _showErrorDialog() {
+        if (!this.currentState || this.currentState.type !== 'error') return;
+
+        const dialog = new St.Bin({
+            style_class: 'modal-dialog',
+            reactive: true,
+            can_focus: true,
+            x_expand: true,
+            y_expand: true,
+        });
+
+        const content = new St.BoxLayout({
+            vertical: true,
+            style_class: 'modal-dialog-content-box',
+            x_expand: true,
+            y_expand: true,
+        });
+
+        const title = new St.Label({
+            text: _('Jira Extension Error'),
+            style_class: 'modal-dialog-headline',
+            x_align: Clutter.ActorAlign.CENTER,
+        });
+
+        const errorText = new St.Label({
+            text: this.currentState.errorDetails || 'Unknown error',
+            style_class: 'modal-dialog-body',
+            x_align: Clutter.ActorAlign.START,
+        });
+        errorText.clutter_text.set_line_wrap(true);
+
+        const buttonBox = new St.BoxLayout({
+            style_class: 'modal-dialog-button-box',
+            x_align: Clutter.ActorAlign.END,
+        });
+
+        const okButton = new St.Button({
+            label: _('OK'),
+            style_class: 'modal-dialog-button',
+            reactive: true,
+            can_focus: true,
+        });
+
+        okButton.connect('clicked', () => {
+            const parent = dialog.get_parent();
+            if (parent) {
+                parent.remove_child(dialog);
+            }
+        });
+
+        buttonBox.add_child(okButton);
+        content.add_child(title);
+        content.add_child(errorText);
+        content.add_child(buttonBox);
+        dialog.set_child(content);
+
+        // Add to the main uiGroup to show as modal
+        (global as any).stage.add_child(dialog);
+        dialog.grab_key_focus();
     }
 
     updateState(state: IndicatorState) {
+        this.currentState = state;
+        
         switch (state.type) {
             case 'loading':
                 this.label.set_text('Loading...');
@@ -121,7 +214,7 @@ class JiraIndicatorClass extends PanelMenu.Button {
                 break;
                 
             case 'error':
-                this.label.set_text(`Error: ${state.text}`);
+                this.label.set_text(state.text);
                 this.currentIssue = null;
                 break;
         }
@@ -147,10 +240,11 @@ class JiraIndicatorClass extends PanelMenu.Button {
         }
     }
 
-    showError(errorMessage: string) {
+    showError(shortMessage: string, fullErrorDetails?: string) {
         this.updateState({
             type: 'error',
-            text: errorMessage
+            text: shortMessage,
+            errorDetails: fullErrorDetails || shortMessage
         });
     }
 
@@ -178,9 +272,27 @@ class JiraIndicatorClass extends PanelMenu.Button {
             event.type() === Clutter.EventType.BUTTON_RELEASE
         ) {
             if (event.get_button() === Clutter.BUTTON_PRIMARY) {
-                // Left click: open issue in browser
-                if (this.currentIssue) {
-                    this._openIssueInBrowser();
+                // Left click behavior depends on current state
+                if (!this.currentState) {
+                    return Clutter.EVENT_PROPAGATE;
+                }
+                
+                switch (this.currentState.type) {
+                    case 'issue':
+                        // Open specific issue in browser
+                        if (this.currentIssue) {
+                            this._openIssueInBrowser();
+                        }
+                        break;
+                    case 'no-issues':
+                    case 'loading':
+                        // Open main Jira URL in browser
+                        this._openJiraInBrowser();
+                        break;
+                    case 'error':
+                        // Show error dialog
+                        this._showErrorDialog();
+                        break;
                 }
             } else if (event.get_button() === Clutter.BUTTON_SECONDARY) {
                 // Right click: show menu
@@ -193,6 +305,7 @@ class JiraIndicatorClass extends PanelMenu.Button {
 
     destroy() {
         this.currentIssue = null;
+        this.currentState = null;
         super.destroy();
     }
 }

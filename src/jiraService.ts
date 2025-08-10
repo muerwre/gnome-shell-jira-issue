@@ -192,7 +192,11 @@ export class JiraService {
     }
 
     getIssueUrl(issue: JiraIssue): string {
-        const baseUrl = this.settings.jiraUrl.replace(/\/$/, '');
+        let baseUrl = this.settings.jiraUrl.trim();
+        if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+            baseUrl = `https://${baseUrl}`;
+        }
+        baseUrl = baseUrl.replace(/\/$/, '');
         return `${baseUrl}/browse/${issue.key}`;
     }
 

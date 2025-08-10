@@ -288,7 +288,9 @@ export default class JiraIssueExtension extends Extension {
             }
         } catch (error) {
             console.error('Extension: Failed to fetch Jira issues:', error);
-            this.indicator.showError(this._getErrorMessage(error));
+            const fullErrorMessage = this._getErrorMessage(error);
+            const shortErrorMessage = this._getShortErrorMessage(error);
+            this.indicator.showError(shortErrorMessage, fullErrorMessage);
         }
     }
 
@@ -297,5 +299,36 @@ export default class JiraIssueExtension extends Extension {
             return error.message;
         }
         return 'Unknown error occurred';
+    }
+
+    private _getShortErrorMessage(error: unknown): string {
+        if (error instanceof Error) {
+            const message = error.message.toLowerCase();
+            
+            if (message.includes('authentication') || message.includes('unauthorized') || message.includes('401')) {
+                return 'Authentication Error';
+            }
+            if (message.includes('forbidden') || message.includes('403')) {
+                return 'Access Denied';
+            }
+            if (message.includes('not found') || message.includes('404')) {
+                return 'Jira Not Found';
+            }
+            if (message.includes('network') || message.includes('connection') || message.includes('timeout')) {
+                return 'Connection Error';
+            }
+            if (message.includes('parse') || message.includes('json')) {
+                return 'Response Error';
+            }
+            if (message.includes('jql') || message.includes('query')) {
+                return 'Query Error';
+            }
+            if (message.includes('configuration') || message.includes('configured')) {
+                return 'Configuration Error';
+            }
+            
+            return 'Request Error';
+        }
+        return 'Unknown Error';
     }
 }

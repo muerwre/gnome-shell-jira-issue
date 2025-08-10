@@ -35,6 +35,7 @@ export interface IndicatorState {
   type: 'loading' | 'issue' | 'no-issues' | 'error';
   text: string;
   issue?: JiraIssue;
+  errorDetails?: string;
 }
 
 export interface ExtensionSettings {
