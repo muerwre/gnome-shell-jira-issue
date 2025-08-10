@@ -1,0 +1,40 @@
+{
+  "name": "jira-issue",
+  "version": "1.0.0",
+  "description": "A TypeScript GNOME Extension to show Jira issues in the taskbar",
+  "type": "module",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/muerwre/jira-issue.git"
+  },
+  "author": "Fedor Katurov <gotham48@gmail.com>",
+  "license": "LGPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/muerwre/jira-issue/issues"
+  },
+  "homepage": "https://github.com/muerwre/jira-issue#readme",
+  "sideEffects": false,
+  "devDependencies": {
+    "@eslint/js": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.10.0",
+    "@typescript-eslint/parser": "^7.10.0",
+    "eslint": "^8.0.0",
+    "eslint-plugin-jsdoc": "^48.2.5",
+    "tsc": "^2.0.4",
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^7.10.0"
+  },
+  "dependencies": {
+    "@girs/gjs": "^3.3.0",
+    "@girs/gnome-shell": "^46.0.0-beta8",
+    "@girs/soup-3.0": "^3.0.0"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "lint-fix": "eslint --fix .",
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "install-ext": "make install"
+  }
+}

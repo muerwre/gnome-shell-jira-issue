@@ -1,0 +1,8 @@
+{
+  "name": "Jira Issue",
+  "description": "Displays your current Jira issue in the taskbar",
+  "uuid": "jira-issue@muerwre.github.com",
+  "url": "https://github.com/muerwre/jira-issue",
+  "settings-schema": "org.gnome.shell.extensions.jira-issue",
+  "shell-version": ["45", "46", "47", "48"]
+}
