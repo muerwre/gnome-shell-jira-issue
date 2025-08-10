@@ -227,24 +227,26 @@ class JiraIndicatorClass extends PanelMenu.Button {
     updateState(state: IndicatorState) {
         this.currentState = state;
         
+        // Only update text if it has changed to prevent blinking
+        const currentText = this.label.get_text();
+        if (currentText !== state.text) {
+            this.label.set_text(state.text);
+        }
+        
         switch (state.type) {
             case 'loading':
-                this.label.set_text('Loading...');
                 this.currentIssue = null;
                 break;
                 
             case 'issue':
-                this.label.set_text(state.text);
                 this.currentIssue = state.issue || null;
                 break;
                 
             case 'no-issues':
-                this.label.set_text(state.text);
                 this.currentIssue = null;
                 break;
                 
             case 'error':
-                this.label.set_text(state.text);
                 this.currentIssue = null;
                 break;
         }
