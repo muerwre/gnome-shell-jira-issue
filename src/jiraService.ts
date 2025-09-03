@@ -22,8 +22,7 @@ export class JiraService {
 
         const queryParts = [
             `jql=${encodeURIComponent(this.settings.jqlQuery)}`,
-            'maxResults=1',
-            'fields=key,summary,status,assignee,priority,issuetype'
+            'fields=*all'
         ];
         
         // Normalize the Jira URL
@@ -35,7 +34,7 @@ export class JiraService {
             baseUrl = baseUrl.slice(0, -1);
         }
         
-        const url = `${baseUrl}/rest/api/2/search?${queryParts.join('&')}`;
+        const url = `${baseUrl}/rest/api/3/search/jql?${queryParts.join('&')}`;
         
         // Basic URL format validation
         if (!url.startsWith('http://') && !url.startsWith('https://')) {
